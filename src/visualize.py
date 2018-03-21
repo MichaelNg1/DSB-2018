@@ -18,7 +18,7 @@ import util.convert as conv
 
 # Fixed variables
 DATA_PATH = '../data/stage1_train'
-TRUTH_PATH = '../data/stage1_train_labels.csv'
+TRUTH_PATH = '../data/stage1_train/stage1_train_labels.csv'
 
 # Change this number for a different image
 IMG_INDEX = 125
