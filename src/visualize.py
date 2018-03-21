@@ -21,7 +21,7 @@ DATA_PATH = '../data/stage1_train'
 TRUTH_PATH = '../data/stage1_train_labels.csv'
 
 # Change this number for a different image
-IMG_INDEX = 28
+IMG_INDEX = 125
 
 ########################################################################
 # 1) Get list of image files and grab one image
@@ -67,7 +67,7 @@ mask_nucl_tot = np.zeros( im_gray.shape )
 for row in df_filt.iterrows():
 	rle = str(row[1]['EncodedPixels'])
 	np_mask = conv.rle2img( rle, im_gray.shape )
-	mask_nucl_tot += np_mask
+	mask_nucl_tot = np.maximum(mask_nucl_tot, np_mask)
 
 ########################################################################
 # 4) Visualize results
