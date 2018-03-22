@@ -8,4 +8,4 @@ This contains the model and code to run/train a UNet to generate a Nuclei mask g
 ## Utils
 This folder contains essential functions relevant for scoring performance, converting to run line encoding (RLE) format, etc.
 * **convert**: This script contains functions that convert RLE strings to 2D numpy arrays and vice-versa.
-* **unet_tools**: This script contains the functions to preprocess the data (i.e. convert image files or csv files in RLE format to numpy and downsample) and the custom intersection over union (IoU) metric for Keras. The truth masks can be 
+* **unet_tools**: This script contains the functions to preprocess the data (i.e. convert image files or csv files in RLE format to numpy and downsample) and the custom intersection over union (IoU) metric for Keras. The truth masks are eroded (this can be disabled) to provide better separation between masks.
