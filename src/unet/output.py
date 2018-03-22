@@ -24,7 +24,8 @@ from unet_tools import mean_iou
 ########################################################################
 # Global Constants
 ########################################################################
-MODEL_PATH = 'model-dsbowl2018-1.h5'
+MODEL_PATH = 'model-dsbowl2018-1-no-erosion.h5'
+# MODEL_PATH = 'model-dsbowl2018-1.h5'
 TEST_PATH = '../../data/stage1_test/'
 TRAIN_PATH = '../../data/stage1_train/'
 TRUTH_PATH = '../../data/stage1_train/stage1_train_labels.csv'
@@ -42,6 +43,7 @@ if __name__ == '__main__':
 
 	x_train, y_train = tool.process_training(TRAIN_PATH, 
 		TRUTH_PATH, 
+		False,
 		IMG_HEIGHT, 
 		IMG_WIDTH, 
 		IMG_CHANNELS)
@@ -56,31 +58,28 @@ if __name__ == '__main__':
 	preds_test_t = (preds_test > 0.5).astype(np.uint8)
 
 
-	# Visualize ssome results
+	# Visualize some results
 	fig, ax = plt.subplots(NUM_VISUAL,3)
+	ind_train = np.random.randint(0, high=x_train.shape[0], size=NUM_VISUAL)
+	ind_test = np.random.randint(0, high=x_test.shape[0], size=NUM_VISUAL)
+
 	for k in range( int(NUM_VISUAL) ):
-		ind = random.randint(0, x_train.shape[0])
-		print(ind, x_train.shape[0])
+		ind1 = ind_train[k]
+		ind2 = ind_test[k]
+
 		if k == 0:
 			ax[k][0].set_title('Training Image with Truth Mask')
-		ax[k][0].imshow( x_train[ind], cmap='gray' )
-		ax[k][0].imshow( np.squeeze(y_train[ind]), alpha=0.5)
+		ax[k][0].imshow( x_train[ind1], cmap='gray' )
+		ax[k][0].imshow( np.squeeze(y_train[ind1]), alpha=0.5)
 
 		if k == 0:
 			ax[k][1].set_title('Training Image with Predicted Mask')
-		ax[k][1].imshow( x_train[ind], cmap='gray' )
-		ax[k][1].imshow( np.squeeze(preds_train_t[ind]), alpha=0.5)
+		ax[k][1].imshow( x_train[ind1], cmap='gray' )
+		ax[k][1].imshow( np.squeeze(preds_train_t[ind1]), alpha=0.5)
 
 		if k == 0:
 			ax[k][2].set_title('Test Image with Predicted Mask')
-		ax[k][2].imshow( x_test[k], cmap='gray' )
-		ax[k][2].imshow( np.squeeze(preds_test_t[k]), alpha=0.5)
+		ax[k][2].imshow( x_test[ind2], cmap='gray' )
+		ax[k][2].imshow( np.squeeze(preds_test_t[ind2]), alpha=0.5)
 
 	plt.show()
-
-	# Create list of upsampled test masks
-	# preds_test_upsampled = []
-	# for i in range(len(preds_test)):
-	#     preds_test_upsampled.append(resize(np.squeeze(preds_test[i]), 
-	#                                        (sizes_test[i][0], sizes_test[i][1]), 
-	#                                        mode='constant', preserve_range=True))

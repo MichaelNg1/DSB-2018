@@ -48,6 +48,7 @@ IMG_CHANNELS = 3
 TRAIN_PATH = '../../data/stage1_train/'
 TRUTH_PATH = '../../data/stage1_train/stage1_train_labels.csv'
 PP_PATH = '../../data/preprocessed_data/'
+NET_NAME = 'model-dsbowl2018-1-no-erosion.h5'
 
 seed = 42
 random.seed = seed
@@ -67,21 +68,11 @@ if __name__ == '__main__':
 
 	# Load in the processed training data
 	x_train, y_train = tool.process_training(TRAIN_PATH, 
-		TRUTH_PATH, 
+		TRUTH_PATH,
+		False,
 		IMG_HEIGHT, 
 		IMG_WIDTH, 
 		IMG_CHANNELS)
-
-	# ind = random.randint(0, x_train.shape[0])
-	# fig, (ax1, ax2) = plt.subplots(1,2)
-	# ax1.set_title('Raw Image')
-	# ax1.imshow( x_train[ind], cmap='gray' )
-
-	# ax2.set_title('Image with Truth Mask')
-	# ax2.imshow( x_train[ind], cmap='gray' )
-	# ax2.imshow( np.squeeze( y_train[ind] ), alpha=0.5)
-	# plt.show()
-
 
 	# Build U-Net model adopted from keegil kaggle kernel
 	inputs = Input((IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
@@ -137,11 +128,16 @@ if __name__ == '__main__':
 
 	outputs = Conv2D(1, (1, 1), activation='sigmoid') (c9)
 
-	model = Model(inputs=[inputs], outputs=[outputs])
+	# Loads the network if it exists already in the folder
+	if pathlib.Path(NET_NAME).exists():
+		model = load_model(NET_NAME, custom_objects={'mean_iou': mean_iou})
+	else:
+		model = Model(inputs=[inputs], outputs=[outputs])
+	
 	model.compile(optimizer='adam', loss='binary_crossentropy', metrics=[mean_iou])
 
 	# Fit model
-	earlystopper = EarlyStopping(patience=5, verbose=1)
-	checkpointer = ModelCheckpoint('model-dsbowl2018-1.h5', verbose=1, save_best_only=True)
+	earlystopper = EarlyStopping(patience=7, verbose=1)
+	checkpointer = ModelCheckpoint(NET_NAME, verbose=1, save_best_only=True)
 	results = model.fit(x_train, y_train, validation_split=0.1, batch_size=16, epochs=50, 
 	                    callbacks=[earlystopper, checkpointer])

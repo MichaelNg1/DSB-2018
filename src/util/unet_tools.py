@@ -3,13 +3,16 @@
 #
 # Author:   Michael Nguyen
 # Email:    mn2769@columbia.edu
-# Date:     3/20/18
+# Date:     3/22/18
 ########################################################################
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import pathlib
+import os
+import sys
+import cv2 as cv
 
 from skimage.io import imread
 from skimage.transform import resize
@@ -17,12 +20,18 @@ from skimage.transform import resize
 from keras import backend as K
 import tensorflow as tf
 
+# Custom scripts
+sys.path.insert(0, os.path.dirname(__file__))
 import convert as con
 
 # Folder for all UNet pre-processed data
-PP_PATH = '../../data/preprocessed_data/'
+PP_PATH = os.path.join(os.path.dirname(__file__), '../../data/preprocessed_data/')
 
-# Define IoU metric
+########################################################################
+# Define IoU metric for Keras
+#
+# Adopted from Kaggle script (reportedly doesn't work that well...)
+########################################################################
 def mean_iou(y_true, y_pred):
     prec = []
     for t in np.arange(0.5, 1.0, 0.05):
@@ -42,28 +51,38 @@ def mean_iou(y_true, y_pred):
 # 	- PATH_IMG: path to the training images
 #	- PATH_RLE: path to the training mask csv
 #	- IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS: image downsampling parameters
+#	- KERNEL_BOOL: true if the individual masks are to be eroded
 # Output:
 # 	- x_train, y_train: numpy arrays of the downsampled images/masks
 ########################################################################
-def process_training(PATH_IMG, PATH_RLE, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
+def process_training(PATH_IMG, PATH_RLE, KERNEL_BOOL, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
+
+	# Erosion Kernel
+	kernel_code = '0' # default if no erosion
+
+	if KERNEL_BOOL:
+		kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(5,5))
+		kernel_code = 'e55'
 
 	# Create the filename for training data
 	header = list( filter(None, PATH_IMG.split('/')) )[-1]
 	x_name = '_'.join([header, 
 		str(IMG_HEIGHT), 
 		str(IMG_WIDTH), 
-		str(IMG_CHANNELS), 
-		'train_img'])
+		str(IMG_CHANNELS),
+		'img'])
 	y_name = '_'.join([header, 
 		str(IMG_HEIGHT), 
 		str(IMG_WIDTH), 
-		str(IMG_CHANNELS), 
+		str(IMG_CHANNELS),
+		kernel_code,
 		'masks'])
 
 	# Check to see if we pre-processed the data with the parameters before
 	if pathlib.Path(PP_PATH + x_name + '.npy').exists() \
 		and pathlib.Path(PP_PATH + y_name + '.npy').exists():
-		print('Preprocessed data found')
+		print('Preprocessed data found: ' + x_name)
+		print('Preprocessed data found: ' + y_name)
 		x_train = np.load(PP_PATH + x_name + '.npy')
 		y_train = np.load(PP_PATH + y_name + '.npy')
 	else:
@@ -96,6 +115,10 @@ def process_training(PATH_IMG, PATH_RLE, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
 			for row in df_filt.iterrows():
 				rle = str(row[1]['EncodedPixels'])
 				np_mask = con.rle2img( rle, orig_mask_shape )
+
+				if KERNEL_BOOL:
+					np_mask = cv.erode(np_mask,kernel,iterations = 1)
+
 				mask = np.maximum(mask, np_mask)
 			mask = resize(mask, (IMG_HEIGHT, IMG_WIDTH, 1),  mode='constant', preserve_range=True)	
 			y_train[ind_] = mask
@@ -116,29 +139,30 @@ def process_training(PATH_IMG, PATH_RLE, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
 # 	- x_test: numpy arrays of the downsampled images
 ########################################################################
 def process_testing(PATH_IMG, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
-	# Create the filename for training data
+
+	# Create the filename for test data
 	header = list( filter(None, PATH_IMG.split('/')) )[-1]
 	x_name = '_'.join([header, 
 		str(IMG_HEIGHT), 
 		str(IMG_WIDTH), 
 		str(IMG_CHANNELS), 
-		'test_img'])
+		'img'])
 
 	# Check to see if we pre-processed the data with the parameters before
 	if pathlib.Path(PP_PATH + x_name + '.npy').exists():
-		print('Preprocessed data found')
+		print('Preprocessed data found: ' + x_name)
 		x_test = np.load(PP_PATH + x_name + '.npy')
 	else:
-		# Grab the paths and ids of all training images
+		# Grab the paths and ids of all test images
 		testing_paths = pathlib.Path( PATH_IMG ).glob('*/images/*.png')
 		testing_paths = sorted([str(x) for x in testing_paths])
 		testing_id = [ x.split('/')[-3] for x in testing_paths]
 		testing_len = len( testing_id )
 
-		# Set up the empty arrays for training images (x) and label/masks (y)
+		# Set up the empty arrays for test images (x) and label/masks (y)
 		x_test = np.zeros((testing_len, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS), dtype=np.uint8)
 
-		# Get and resize the training images
+		# Get and resize the tset images
 		print('Processing Images:')
 		for ind_, path_ in tqdm( enumerate(testing_paths), total=testing_len ):
 			
@@ -147,6 +171,6 @@ def process_testing(PATH_IMG, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS):
 			img = resize(img, (IMG_HEIGHT, IMG_WIDTH),  mode='constant', preserve_range=True)
 			x_test[ind_] = img
 
-		# Save the numpy, downsized training images and masks
+		# Save the numpy, downsized test images and masks
 		np.save(PP_PATH + x_name, x_test)
 	return x_test

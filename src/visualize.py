@@ -7,77 +7,65 @@
 ########################################################################
 
 import pathlib
+import sys
 import imageio
 import numpy as np
-from skimage.color import rgb2gray
-import pandas as pd
 import matplotlib.pyplot as plt
+import random
+from tqdm import tqdm
+
+import cv2 as cv
 
 # import custom scripts
 import util.convert as conv
+import util.unet_tools as tool
 
 # Fixed variables
-DATA_PATH = '../data/stage1_train'
+TEST_PATH = '../data/stage1_test/'
+TRAIN_PATH = '../data/stage1_train/'
 TRUTH_PATH = '../data/stage1_train/stage1_train_labels.csv'
+IMG_WIDTH = 128
+IMG_HEIGHT = 128
+IMG_CHANNELS = 3
+NUM_VISUAL = 5
 
-# Change this number for a different image
-IMG_INDEX = 125
+x_test = tool.process_testing(TEST_PATH, 
+	IMG_HEIGHT, 
+	IMG_WIDTH, 
+	IMG_CHANNELS)
 
-########################################################################
-# 1) Get list of image files and grab one image
-########################################################################
+x_train, y_train = tool.process_training(TRAIN_PATH, 
+	TRUTH_PATH, 
+	True,
+	IMG_HEIGHT, 
+	IMG_WIDTH, 
+	IMG_CHANNELS)
 
-# Glob the training data and load a single image path
-training_paths = pathlib.Path( DATA_PATH ).glob('*/images/*.png')
-training_sorted = sorted([x for x in training_paths])
+x_train_old, y_train_old = tool.process_training(TRAIN_PATH, 
+	TRUTH_PATH, 
+	False,
+	IMG_HEIGHT, 
+	IMG_WIDTH, 
+	IMG_CHANNELS)
 
-im_path = training_sorted[IMG_INDEX]
-im = imageio.imread(str(im_path))
+# Visualize random images from training img, training mask, test img
+fig, ax = plt.subplots(NUM_VISUAL,3)
+ind_train = np.random.randint(0, high=x_train.shape[0], size=NUM_VISUAL)
 
-# Grab the image ID
-im_id = str(im_path).split('/')[-3]
-print('ImageID: %s' % (im_id) )
+for k in range( int(NUM_VISUAL) ):
+	ind = random.randint(0, x_train.shape[0])
+	if k == 0:
+		ax[k][0].set_title('Original mask')
+	ax[k][0].imshow( np.squeeze(y_train_old[ ind_train[k] ] ) )
+	
 
-# Coerce the image into grayscale format (if not already)
-im_gray = rgb2gray(im)
+	if k == 0:
+		ax[k][1].set_title('Eroded mask')
+	ax[k][1].imshow( np.squeeze(y_train[ ind_train[k] ]))
 
-########################################################################
-# 2) Get mask from the specific image
-########################################################################
-# Turns out the truth is the same as the png images...
+	if k == 0:
+		ax[k][2].set_title('Original w/ eroded mask')
+	ax[k][2].imshow( x_train[ ind_train[k] ] )
+	ax[k][2].imshow( np.squeeze(y_train[ ind_train[k] ]), alpha = 0.25)
 
-# # Glob the training data and load a single image path
-# training_mask_paths = pathlib.Path( DATA_PATH ).glob( im_id + '/masks/*.png')
-
-# mask_cell_tot = np.zeros( im_gray.shape )
-# for path in training_mask_paths:
-# 	im_mask = np.array( imageio.imread(str(path)) )
-# 	mask_cell_tot += rgb2gray(im_mask)
-
-########################################################################
-# 3) Get nucleus mask from the specific image
-########################################################################
-
-# Get the data from the truth and select the masks w/ relevant data
-df = pd.read_csv(TRUTH_PATH)
-df_filt = df.loc[df['ImageId'] == im_id]
-
-# Take the union over all the masks, they should be non-overlapping
-mask_nucl_tot = np.zeros( im_gray.shape )
-for row in df_filt.iterrows():
-	rle = str(row[1]['EncodedPixels'])
-	np_mask = conv.rle2img( rle, im_gray.shape )
-	mask_nucl_tot = np.maximum(mask_nucl_tot, np_mask)
-
-########################################################################
-# 4) Visualize results
-########################################################################
-
-fig, (ax1, ax2) = plt.subplots(1,2)
-ax1.set_title('Raw Image')
-ax1.imshow( im_gray, cmap='gray' )
-
-ax2.set_title('Image with Truth Mask')
-ax2.imshow( im_gray, cmap='gray' )
-ax2.imshow( mask_nucl_tot, alpha=0.5)
 plt.show()
