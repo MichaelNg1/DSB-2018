@@ -24,10 +24,10 @@ import util.unet_tools as tool
 TEST_PATH = '../data/stage1_test/'
 TRAIN_PATH = '../data/stage1_train/'
 TRUTH_PATH = '../data/stage1_train/stage1_train_labels.csv'
-IMG_WIDTH = 128
-IMG_HEIGHT = 128
+IMG_WIDTH = 160
+IMG_HEIGHT = 160
 IMG_CHANNELS = 3
-NUM_VISUAL = 5
+NUM_VISUAL = 3
 
 x_test = tool.process_testing(TEST_PATH, 
 	IMG_HEIGHT, 

@@ -42,8 +42,8 @@ from unet_tools import mean_iou
 ########################################################################
 # Global Constants
 ########################################################################
-IMG_WIDTH = 128
-IMG_HEIGHT = 128
+IMG_WIDTH = 160
+IMG_HEIGHT = 160
 IMG_CHANNELS = 3
 TRAIN_PATH = '../../data/stage1_train/'
 TRUTH_PATH = '../../data/stage1_train/stage1_train_labels.csv'
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 	# Load in the processed training data
 	x_train, y_train = tool.process_training(TRAIN_PATH, 
 		TRUTH_PATH,
-		False,
+		True,
 		IMG_HEIGHT, 
 		IMG_WIDTH, 
 		IMG_CHANNELS)

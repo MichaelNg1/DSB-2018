@@ -15,6 +15,11 @@ import random
 from keras.models import Model, load_model
 import tensorflow as tf
 
+# Watershed segmentation
+from scipy import ndimage as ndi
+from skimage.morphology import watershed
+from skimage.feature import peak_local_max
+
 # Custom scripts
 sys.path.insert(0, '../util')
 import convert as con
@@ -29,10 +34,12 @@ MODEL_PATH = 'model-dsbowl2018-1-no-erosion.h5'
 TEST_PATH = '../../data/stage1_test/'
 TRAIN_PATH = '../../data/stage1_train/'
 TRUTH_PATH = '../../data/stage1_train/stage1_train_labels.csv'
-IMG_WIDTH = 128
-IMG_HEIGHT = 128
+IMG_WIDTH = 160
+IMG_HEIGHT = 160
 IMG_CHANNELS = 3
-NUM_VISUAL = 5
+NUM_VISUAL = 3
+
+THRESHOLD = 0.5
 
 if __name__ == '__main__':
 
@@ -43,7 +50,7 @@ if __name__ == '__main__':
 
 	x_train, y_train = tool.process_training(TRAIN_PATH, 
 		TRUTH_PATH, 
-		False,
+		True,
 		IMG_HEIGHT, 
 		IMG_WIDTH, 
 		IMG_CHANNELS)
@@ -54,9 +61,8 @@ if __name__ == '__main__':
 	preds_test = model.predict(x_test, verbose=1)
 
 	# Threshold predictions
-	preds_train_t = (preds_train > 0.5).astype(np.uint8)
-	preds_test_t = (preds_test > 0.5).astype(np.uint8)
-
+	preds_train_t = (preds_train > THRESHOLD).astype(np.uint8)
+	preds_test_t = (preds_test > THRESHOLD).astype(np.uint8)
 
 	# Visualize some results
 	fig, ax = plt.subplots(NUM_VISUAL,3)
@@ -68,18 +74,31 @@ if __name__ == '__main__':
 		ind2 = ind_test[k]
 
 		if k == 0:
-			ax[k][0].set_title('Training Image with Truth Mask')
+			ax[k][0].set_title('(Eroded) Truth Mask')
 		ax[k][0].imshow( x_train[ind1], cmap='gray' )
 		ax[k][0].imshow( np.squeeze(y_train[ind1]), alpha=0.5)
+		ax[k][0].set_axis_off()
 
 		if k == 0:
-			ax[k][1].set_title('Training Image with Predicted Mask')
-		ax[k][1].imshow( x_train[ind1], cmap='gray' )
+			ax[k][1].set_title('Predicted Mask')
+		# ax[k][1].imshow( x_train[ind1], cmap='gray' )
 		ax[k][1].imshow( np.squeeze(preds_train_t[ind1]), alpha=0.5)
+		ax[k][1].set_axis_off()
+
+		# Watershed segmentation
+		image = np.squeeze(preds_train_t[ ind1 ])
+		distance = ndi.distance_transform_edt(image)
+		# local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((10, 10)),
+		                            # labels=image)
+		local_maxi = peak_local_max(distance, indices=False, threshold_rel=0.5,
+									labels=image)
+		markers = ndi.label(local_maxi)[0]
+		labels = watershed(-distance, markers, mask=image)
 
 		if k == 0:
-			ax[k][2].set_title('Test Image with Predicted Mask')
-		ax[k][2].imshow( x_test[ind2], cmap='gray' )
-		ax[k][2].imshow( np.squeeze(preds_test_t[ind2]), alpha=0.5)
+			ax[k][2].set_title('Training Segmentation')
+		ax[k][2].imshow(labels, cmap=plt.cm.nipy_spectral, interpolation='nearest')
+		ax[k][2].set_axis_off()
 
+	# fig.tight_layout()
 	plt.show()
